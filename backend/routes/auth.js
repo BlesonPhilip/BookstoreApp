@@ -9,6 +9,12 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json("Email already in use");
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
@@ -18,9 +24,11 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json("User created");
+
+    const { password: _, ...userData } = newUser._doc;
+    res.status(201).json(userData);
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -39,9 +47,14 @@ router.post("/login", async (req, res) => {
       expiresIn: "1d",
     });
 
-    res.json({ token, userId: user._id });
+    res.json({
+      token,
+      userId: user._id,
+      username: user.username,
+      email: user.email,
+    });
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
